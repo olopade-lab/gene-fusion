@@ -10,7 +10,7 @@ parsl.load(config)
 
 
 @bash_app
-def run_star(genome_lib, output, left_fq, right_fq, image='trinityctat/starfusion:1.8.0', memory=200, stderr=parsl.AUTO_LOGNAME, stdout=parsl.AUTO_LOGNAME):
+def run_star(genome_lib, output, left_fq, right_fq, container='trinityctat/starfusion:1.8.0', memory=200, stderr=parsl.AUTO_LOGNAME, stdout=parsl.AUTO_LOGNAME):
     import os
 
     data, left_fq = os.path.split(left_fq)
@@ -18,7 +18,7 @@ def run_star(genome_lib, output, left_fq, right_fq, image='trinityctat/starfusio
 
     command = (
         'echo $HOSTNAME; '
-        'docker pull trinityctat/starfusion:1.8.0; '
+        'docker pull {container}; '
         'docker run '
         '--memory={memory}gb '
         '-v {data}:/data '
@@ -36,6 +36,7 @@ def run_star(genome_lib, output, left_fq, right_fq, image='trinityctat/starfusio
     )
 
     return command.format(
+        container=container,
         data=data,
         genome_lib=genome_lib,
         output=output,
