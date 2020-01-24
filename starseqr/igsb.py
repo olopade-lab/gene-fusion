@@ -6,21 +6,21 @@ from parsl.executors import HighThroughputExecutor
 from parsl.monitoring.monitoring import MonitoringHub
 
 config = Config(
+    checkpoint_mode='task_exit',
     executors=[
         HighThroughputExecutor(
             worker_debug=False,
             address=address_by_hostname(),
-            cores_per_worker=10,
+            cores_per_worker=15,
             provider=SlurmProvider(
                 'daenerys',
                 launcher=SingleNodeLauncher(),
-                # launcher=SrunLauncher(),
                 nodes_per_block=1,
                 init_blocks=1,
                 min_blocks=0,
-                # max_blocks=1,
                 max_blocks=15,
-                scheduler_options='#SBATCH --mem=200G\n#SBATCH --exclude=kg15-[7-9]',
+                # scheduler_options='#SBATCH --mem=200G\n#SBATCH --exclude=kg15-9,kg15-7,kg15-8',
+                scheduler_options='#SBATCH --exclude=kg15-9,kg15-7,kg15-8',
                 worker_init='export PYTHONPATH=$PYTHONPATH:/cephfs/users/annawoodard/.local/lib/python3.7/site-packages; export PYTHONPATH=$PYTHONPATH:/cephfs/users/annawoodard/.local/lib/python3.7/site-packages',
                 walltime='48:00:00'
             ),

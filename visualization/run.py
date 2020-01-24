@@ -46,9 +46,9 @@ def run_fusion_inspector(base_dir, raw_data, interim_data, genome_lib, sample, s
         '--genome_lib /genome-lib '
         '--out_prefix finspector '
         '--vis '
-        '--include_Trinity '
+        # '--include_Trinity '
         '--examine_coding_effect '
-        '--extract_fusion_reads_file /base/pe_samples/fusion_reads '
+        '--extract_fusion_reads_file /base/pe_samples/fusion_reads/{sample} '
         '--annotate '
     )
 

@@ -26,50 +26,61 @@ def build_index(references, image='uhrigs/arriba:1.1.0', assembly_and_annotation
     )
 
 
-@bash_app
-def run_arriba(references, output, left_fq, right_fq, container='uhrigs/arriba:1.1.0', stderr=parsl.AUTO_LOGNAME, stdout=parsl.AUTO_LOGNAME):
+@bash_app(cache=True)
+def run_arriba(base_dir, raw_data, references, sample, output, container='uhrigs/arriba:1.1.0', stderr=parsl.AUTO_LOGNAME, stdout=parsl.AUTO_LOGNAME):
     import os
 
-    command = (
+    command = ''
+    if not os.path.isfile('{base_dir}/data/interim/{sample}/merged.R1.fastq.gz'.format(
+                base_dir=base_dir,
+                sample=sample
+                )
+            ):
+        command = (
+            'mkdir -p {base_dir}/data/interim/{sample}; '
+            'cat {raw_data}/{sample}/*R1*.fastq.gz > {base_dir}/data/interim/{sample}/merged.R1.fastq.gz; '
+            'cat {raw_data}/{sample}/*R2*.fastq.gz > {base_dir}/data/interim/{sample}/merged.R2.fastq.gz; '
+        )
+
+    command += (
         'echo $HOSTNAME; '
         'docker pull {container}; '
         'docker run '
         '--rm '
+        '-v {base_dir}/data/interim:/data '
         '-v {output}:/output '
         '-v {references}:/references:ro '
-        '-v {left_fq}:/read1.fastq.gz:ro '
-        '-v {right_fq}:/read2.fastq.gz:ro '
+        '-v {base_dir}/data/interim/{sample}/merged.R1.fastq.gz:/read1.fastq.gz:ro '
+        '-v {base_dir}/data/interim/{sample}/merged.R2.fastq.gz:/read2.fastq.gz:ro '
         '{container} '
         'arriba.sh'
     )
 
     return command.format(
+        base_dir=base_dir,
+        raw_data=raw_data,
+        sample=sample,
         container=container,
         output=output,
-        references=references,
-        left_fq=left_fq,
-        right_fq=right_fq,
+        references=references
     )
 
 references = '/cephfs/users/annawoodard/gene-fusion/arriba/references'
-print('starting to build index')
-build_index(references).result()
-print('finished building index')
+# print('starting to build index')
+# build_index(references).result()
+# print('finished building index')
 
-sample_dirs = glob.glob('/cephfs/PROJECTS/FO_NBCP_Novartis/wabcs_rna/LIB-*')
-outdir = '/cephfs/users/annawoodard/gene-fusion/arriba/results_v1'
+outdir = '/cephfs/users/annawoodard/gene-fusion/arriba/results_v3'
+raw_data = '/cephfs/PROJECTS/FO_NBCP_Novartis/wabcs_rna/'
+base_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])
+sample_dirs = glob.glob(os.path.join(raw_data, 'LIB-*'))
 
 for sample_dir in sample_dirs:
     sample_id = os.path.split(sample_dir)[-1]
-    lanes = sorted(glob.glob(os.path.join(sample_dir, '*fastq.gz')))
-    pairs = [lanes[i:i + 2] for i in range(0, len(lanes), 2)]
+    output = os.path.join(outdir, sample_id)
+    os.makedirs(os.path.dirname(output), exist_ok=True)
 
-    for left_fq, right_fq in pairs:
-        lane = os.path.basename(left_fq).split('_')[2]
-        output = os.path.join(outdir, sample_id, lane)
-        os.makedirs(os.path.dirname(output), exist_ok=True)
-
-        run_arriba(references, output, left_fq, right_fq)
+    run_arriba(base_dir, raw_data, references, sample_id, output)
 
 parsl.wait_for_current_tasks()
 

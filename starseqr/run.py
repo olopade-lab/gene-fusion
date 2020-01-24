@@ -8,32 +8,45 @@ from igsb import config
 parsl.set_stream_logger()
 parsl.load(config)
 
-@bash_app
+@bash_app(cache=True)
 def run_starseqr(
+            raw_data,
+            base_dir,
+            sample,
             output,
-            left_fq,
-            right_fq,
             star_index,
             gtf,
             assembly,
             container='eagenomics/starseqr:0.6.7',
             stderr=parsl.AUTO_LOGNAME,
             stdout=parsl.AUTO_LOGNAME):
-    command = (
+    import os
+
+    command = ''
+    if not os.path.isfile('{base_dir}/data/interim/{sample}/merged.R1.fastq.gz'.format(
+                base_dir=base_dir,
+                sample=sample
+                )
+            ):
+        command = (
+            'mkdir -p {base_dir}/data/interim/{sample}; '
+            'cat {raw_data}/{sample}/*R1*.fastq.gz > {base_dir}/data/interim/{sample}/merged.R1.fastq.gz; '
+            'cat {raw_data}/{sample}/*R2*.fastq.gz > {base_dir}/data/interim/{sample}/merged.R2.fastq.gz; '
+        )
+
+    command += (
         'echo $HOSTNAME; '
         'docker pull {container}; '
         'docker run '
-        # '-it '
         '-v {output}:/output '
         '-v {star_index}:/star_index '
         '-v {gtf}:/gencode.gtf '
         '-v {assembly}:/assembly.fa '
-        '-v {left_fq}:/read1.fastq.gz '
-        '-v {right_fq}:/read2.fastq.gz '
+        '-v {base_dir}/data/interim:/data '
         '{container} '
         'starseqr.py '
-        '-1 /read1.fastq.gz '
-        '-2 /read2.fastq.gz '
+        '-1 /data/{sample}/merged.R1.fastq.gz '
+        '-2 /data/{sample}/merged.R2.fastq.gz '
         '-p /output/ss '
         '-i /star_index '
         '-g /gencode.gtf '
@@ -43,9 +56,10 @@ def run_starseqr(
     )
 
     return command.format(
+        raw_data=raw_data,
+        base_dir=base_dir,
+        sample=sample,
         output=output,
-        left_fq=left_fq,
-        right_fq=right_fq,
         star_index=star_index,
         gtf=gtf,
         assembly=assembly,
@@ -55,20 +69,17 @@ def run_starseqr(
 star_index = '/cephfs/users/annawoodard/gene-fusion/arriba/references/STAR_index_GRCh38_GENCODE28'
 gtf = '/cephfs/users/annawoodard/gene-fusion/arriba/references/GENCODE28.gtf'
 assembly = '/cephfs/users/annawoodard/gene-fusion/arriba/references/GRCh38.fa'
-sample_dirs = glob.glob('/cephfs/PROJECTS/FO_NBCP_Novartis/wabcs_rna/LIB-*')
-outdir = '/cephfs/users/annawoodard/gene-fusion/starseqr/results_v1'
+outdir = '/cephfs/users/annawoodard/gene-fusion/starseqr/results_v3'
+raw_data = '/cephfs/PROJECTS/FO_NBCP_Novartis/wabcs_rna/'
+base_dir = '/'.join(os.path.abspath(__file__).split('/')[:-2])
+sample_dirs = glob.glob(os.path.join(raw_data, 'LIB-*'))
 
 for sample_dir in sample_dirs:
     sample_id = os.path.split(sample_dir)[-1]
-    lanes = sorted(glob.glob(os.path.join(sample_dir, '*fastq.gz')))
-    pairs = [lanes[i:i + 2] for i in range(0, len(lanes), 2)]
+    output = os.path.join(outdir, sample_id)
+    os.makedirs(os.path.dirname(output), exist_ok=True)
 
-    for left_fq, right_fq in pairs:
-        lane = os.path.basename(left_fq).split('_')[2]
-        output = os.path.join(outdir, sample_id, lane)
-        os.makedirs(os.path.dirname(output), exist_ok=True)
-
-        run_starseqr(output, left_fq, right_fq, star_index, gtf, assembly)
+    run_starseqr(raw_data, base_dir, sample_id, output, star_index, gtf, assembly)
 
 parsl.wait_for_current_tasks()
 

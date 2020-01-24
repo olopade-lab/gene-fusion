@@ -9,7 +9,7 @@ parsl.set_stream_logger()
 parsl.load(config)
 
 
-@bash_app(walltime=6 * 60 * 60)
+@bash_app
 def run_star(raw_data, base_dir, sample, genome_lib, output, container='trinityctat/starfusion:1.8.0', memory=200, stderr=parsl.AUTO_LOGNAME, stdout=parsl.AUTO_LOGNAME):
     import os
 
