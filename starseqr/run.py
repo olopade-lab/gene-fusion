@@ -38,6 +38,7 @@ def run_starseqr(
         'echo $HOSTNAME; '
         'docker pull {container}; '
         'docker run '
+        '--rm '
         '-v {output}:/output '
         '-v {star_index}:/star_index '
         '-v {gtf}:/gencode.gtf '
